@@ -79,8 +79,8 @@ void ImuVn100::SyncInfo::FixSyncRate() {
 
 ImuVn100::ImuVn100(const ros::NodeHandle& pnh)
     : pnh_(pnh),
-      port_(std::string("/dev/ttyUSB0")),
-      baudrate_(921600),
+      port_(std::string("/dev/ttyTHS2")),
+      baudrate_(115200),
       frame_id_(std::string("imu")) {
   Initialize();
   imu_vn_100_ptr = this;
@@ -103,7 +103,7 @@ void ImuVn100::FixImuRate() {
 }
 
 void ImuVn100::LoadParameters() {
-  pnh_.param<std::string>("port", port_, std::string("/dev/ttyUSB0"));
+  pnh_.param<std::string>("port", port_, std::string("/dev/ttyTHS2"));
   pnh_.param<std::string>("frame_id", frame_id_, pnh_.getNamespace());
   pnh_.param("baudrate", baudrate_, 115200);
   pnh_.param("imu_rate", imu_rate_, kDefaultImuRate);
@@ -175,23 +175,23 @@ void ImuVn100::CreateDiagnosedPublishers() {
 void ImuVn100::Initialize() {
   LoadParameters();
 
-  ROS_DEBUG("Connecting to device");
+  ROS_DEBUG("Connecting to device at 115200 baud");
   VnEnsure(vn100_connect(&imu_, port_.c_str(), 115200));
   ros::Duration(0.5).sleep();
   ROS_INFO("Connected to device at %s", port_.c_str());
 
-  unsigned int old_baudrate;
+  uint32_t old_baudrate = 0;
   VnEnsure(vn100_getSerialBaudRate(&imu_, &old_baudrate));
   ROS_INFO("Default serial baudrate: %u", old_baudrate);
 
-  ROS_INFO("Set serial baudrate to %d", baudrate_);
+  ROS_INFO("Telling device to set its serial baudrate to %u", baudrate_);
   VnEnsure(vn100_setSerialBaudRate(&imu_, baudrate_, true));
 
   ROS_DEBUG("Disconnecting the device");
   vn100_disconnect(&imu_);
   ros::Duration(0.5).sleep();
 
-  ROS_DEBUG("Reconnecting to device");
+  ROS_DEBUG("Reconnecting to device at %u baud", baudrate_);
   VnEnsure(vn100_connect(&imu_, port_.c_str(), baudrate_));
   ros::Duration(0.5).sleep();
   ROS_INFO("Connected to device at %s", port_.c_str());
@@ -502,10 +502,10 @@ void VnEnsure(const VnErrorCode& error_code) {
     case VNERR_NOT_IMPLEMENTED:
       throw std::runtime_error("VN: Not implemented");
     case VNERR_TIMEOUT:
-      ROS_WARN("Opertation time out");
+      ROS_WARN("Operation time out");
       break;
     case VNERR_SENSOR_INVALID_PARAMETER:
-      ROS_WARN("VN: Sensor invalid paramter");
+      ROS_WARN("VN: Sensor invalid parameter");
       break;
     case VNERR_INVALID_VALUE:
       ROS_WARN("VN: Invalid value");
